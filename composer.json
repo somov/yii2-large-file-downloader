@@ -1,0 +1,48 @@
+{
+    "name": "somov/yii2-large-file-downloader",
+    "description": "Download file in multiple streams. With the ability to resume and monitor progress",
+    "type": "yii2-extension",
+    "keywords": [
+        "yii2",
+        "large",
+        "file",
+        "downloader"
+    ],
+    "license": "BSD-3-Clause",
+    "authors": [
+        {
+            "name": "Somov N",
+            "email": "somov.nn@gmail.com"
+        }
+    ],
+    "require": {
+        "yiisoft/yii2": ">=2.0.14",
+        "yiisoft/yii2-httpclient": "*",
+      "ext-curl": "*"
+    },
+
+    "require-dev": {
+        "codeception/base": "^2.2.3",
+        "codeception/verify": "~0.3.1",
+        "codeception/specify": "~0.4.3",
+        "phpunit/phpunit": "~5"
+    },
+
+    "autoload": {
+        "psr-4": {
+            "somov\\lfd\\": "src"
+        }
+    },
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://asset-packagist.org"
+        }
+    ],
+    "config": {
+        "process-timeout": 1800,
+        "fxp-asset": {
+            "enabled": false
+        }
+    }
+}
