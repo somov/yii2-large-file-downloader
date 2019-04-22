@@ -89,7 +89,7 @@ class Block extends BaseObject
      */
     public function totalExists()
     {
-        return $this->_exists +  $this->_downloaded;
+        return $this->_exists + $this->_downloaded;
     }
 
     /**
@@ -111,11 +111,11 @@ class Block extends BaseObject
             if ($block->_curlResource === $resource) {
                 $block->_downloaded = $downloaded;
             }
-            $p['done']  += $block->totalExists();
-            $p['total']  += $block->length;
+            $p['done'] += $block->totalExists();
+            $p['total'] += $block->length;
         }
 
-        $p['percent'] = (integer) round( ($p['done'] * 100 / $p['total']));
+        $p['percent'] = (integer)round(($p['done'] * 100 / $p['total']));
 
         return $p;
     }
@@ -173,15 +173,19 @@ class Block extends BaseObject
             $block->_hash = sha1(implode($url, $block->toArray()));
             $s++;
 
-            if ($client->resumeDownload) {
-                $file = $block->getPartFileName();
-                if (file_exists($file)) {
+            $file = $block->getPartFileName();
+
+            if (file_exists($file)) {
+                if ($client->resumeDownload) {
                     $block->_exists = filesize($file);
                     if ($block->_exists < $block->_length) {
                         $block->_start += $block->_exists;
                     }
+                } else {
+                    unlink($file);
                 }
             }
+
 
             $blocks[] = $block;
         }

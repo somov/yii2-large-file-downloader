@@ -23,7 +23,7 @@ class Client extends BaseClient
     const EVENT_PROGRESS = 'progress';
 
 
-    /** @var  Response */
+    /** @var  \yii\httpclient\Response */
     private $_preResponse;
 
     /**
@@ -138,6 +138,14 @@ class Client extends BaseClient
         $request = parent::createRequest();
         $this->_url = $request->url;
         return $request;
+    }
+
+    /**
+     * @return\yii\httpclient\Response|null
+     */
+    public function getPreResponse()
+    {
+        return $this->_preResponse;
     }
 
 }

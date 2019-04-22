@@ -39,7 +39,7 @@ class Transport extends BaseTransport
         $client = $this->getClient($request)->preRequest($request);
 
         if ($client->getRemoteSize() === 0) {
-            return null;
+            return $client->getPreResponse();
         }
 
         if (!$client->isAcceptRanges()) {
