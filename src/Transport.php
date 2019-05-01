@@ -52,7 +52,7 @@ class Transport extends BaseTransport
         foreach ($blocks as $block) {
 
             if ($block->totalExists() < $block->length) {
-                $request = new Request([
+                $request = new Request(ArrayHelper::merge( $client->requestConfig,[
                     'url' => $request->getUrl(),
                     'client' => $client,
                     'options' => [
@@ -68,13 +68,13 @@ class Transport extends BaseTransport
                         },
                         CURLOPT_NOPROGRESS => false,
                         CURLOPT_FILE => $block->getFileResource(),
+                    ],
+                    'headers' => [
+                        'range' => "bytes=$block->start-$block->end",
+                        'Cache-Control' => 'no-cache'
                     ]
-                ]);
-
-                $request->setHeaders(ArrayHelper::merge($request->headers->toArray(), [
-                    'range' => "bytes=$block->start-$block->end",
-                    'Cache-Control' => 'no-cache'
                 ]));
+
                 $block->request = $request;
                 $requests[] = $request;
             }

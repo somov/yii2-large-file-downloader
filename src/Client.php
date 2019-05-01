@@ -9,6 +9,7 @@
 namespace somov\lfd;
 
 
+use yii\helpers\ArrayHelper;
 use yii\helpers\FileHelper;
 use yii\httpclient\Client as BaseClient;
 use yii\httpclient\CurlTransport;
@@ -85,7 +86,7 @@ class Client extends BaseClient
     {
 
         if (is_array($request)) {
-            $this->requestConfig = $request;
+            $this->requestConfig = ArrayHelper::merge($this->requestConfig, $request);
             $request = $this->createRequest();
         } elseif (isset($this->_preResponse) && $request->url === $this->_url) {
             return $this;
@@ -94,13 +95,14 @@ class Client extends BaseClient
         $client = \Yii::createObject([
             'class' => BaseClient::class,
             'transport' => CurlTransport::class,
+            'requestConfig' => $this->requestConfig
         ]);
 
-        $url = $request->getFullUrl();
+        $this->_url = $request->getFullUrl();
 
-        $this->responseConfig['baseFileName'] = basename($url);
+        $this->responseConfig['baseFileName'] = basename($this->_url);
 
-        $this->_preResponse = $client->head($url)->send();
+        $this->_preResponse = $client->head($this->_url)->send();
 
         return $this;
 
@@ -129,16 +131,6 @@ class Client extends BaseClient
     }
 
 
-    /**
-     * @return Request
-     * @throws \yii\base\InvalidConfigException
-     */
-    public function createRequest()
-    {
-        $request = parent::createRequest();
-        $this->_url = $request->url;
-        return $request;
-    }
 
     /**
      * @return\yii\httpclient\Response|null
