@@ -26,40 +26,39 @@ use yii\httpclient\Transport as BaseTransport;
  */
 class Transport extends BaseTransport
 {
+
+    /**
+     * @var int
+     */
+    public $threadCount = 2;
+
     /**
      * @param Request $request
      * @return \yii\httpclient\Response
      * @throws Exception
      * @throws InvalidConfigException
-     * @throws \yii\httpclient\Exception
      */
     public function send($request)
     {
+        /**
+         * @var Client $client
+         */
+        $client = $request->client;
 
-        $client = $this->getClient($request)->preRequest($request);
-
-        if ($client->getRemoteSize() === 0) {
-            return $client->getPreResponse();
-        }
-
-        if (!$client->isAcceptRanges()) {
-            $client->threadCount = 1;
-        }
-
-        $blocks = Block::calculate($client, $request->getUrl());
+        $threads = Thread::calculate($client, $request->getUrl(), $this->threadCount);
         $requests = [];
         $progress = 0;
-        foreach ($blocks as $block) {
 
-            if ($block->totalExists() < $block->length) {
-                $request = new Request(ArrayHelper::merge( $client->requestConfig,[
-                    'url' => $request->getUrl(),
+        foreach ($threads as $thread) {
+
+            if ($thread->totalExists() < $thread->length) {
+                $request = new Request(ArrayHelper::merge($client->requestConfig, [
                     'client' => $client,
                     'options' => [
                         CURLOPT_PROGRESSFUNCTION => function ($resource, $downloadSize, $downloaded)
-                        use (&$blocks, &$progress, $client) {
+                        use (&$threads, &$progress, $client) {
                             if ($downloadSize > 0) {
-                                $p = Block::progress($resource, $downloaded, $blocks);
+                                $p = Thread::progress($resource, $downloaded, $threads);
                                 if ($p['percent'] !== $progress) {
                                     $progress = ['percent'];
                                     $client->trigger(Client::EVENT_PROGRESS, new ProgressEvent($p));
@@ -67,22 +66,22 @@ class Transport extends BaseTransport
                             }
                         },
                         CURLOPT_NOPROGRESS => false,
-                        CURLOPT_FILE => $block->getFileResource(),
+                        CURLOPT_FILE => $thread->getFileResource(),
                     ],
                     'headers' => [
-                        'range' => "bytes=$block->start-$block->end",
+                        'range' => "bytes=$thread->start-$thread->end",
                         'Cache-Control' => 'no-cache'
                     ]
                 ]));
 
-                $block->request = $request;
+                $thread->request = $request;
                 $requests[] = $request;
             }
         }
 
-        $this->batchSendBlocks($requests, $blocks);
+        $this->batchSendThreads($requests, $threads);
 
-        return $client->createResponse($blocks);
+        return $client->createResponse($threads);
 
     }
 
@@ -104,11 +103,11 @@ class Transport extends BaseTransport
 
     /**
      * @param Request[] $requests
-     * @param Block[] $blocks
+     * @param Thread[] $threads
      * @throws Exception
      * @throws InvalidConfigException
      */
-    public function batchSendBlocks(array $requests, &$blocks)
+    public function batchSendThreads(array $requests, &$threads)
     {
         $curlBatchResource = curl_multi_init();
 
@@ -122,10 +121,10 @@ class Transport extends BaseTransport
             $curlOptions = $this->prepare($request);
             $curlResource = $this->initCurl($curlOptions);
 
-            $blocks[$key]->setCurlResource($curlResource);
+            $threads[$key]->setCurlResource($curlResource);
 
             $token .= $request->client->createRequestLogToken($request->getMethod(), $curlOptions[CURLOPT_URL],
-                    $curlOptions[CURLOPT_HTTPHEADER], $blocks[$key]->getHash()) . "\n\n";
+                    $curlOptions[CURLOPT_HTTPHEADER], $threads[$key]->getHash()) . "\n\n";
 
             $responseHeaders[$key] = [];
             $this->setHeaderOutput($curlResource, $responseHeaders[$key]);
@@ -166,7 +165,7 @@ class Transport extends BaseTransport
         foreach ($requests as $key => $request) {
             $response = $request->client->createResponse($responseContents[$key], $responseHeaders[$key]);
             $request->afterSend($response);
-            $blocks[$key]->response = $response;
+            $threads[$key]->response = $response;
         }
 
     }

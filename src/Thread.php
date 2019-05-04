@@ -19,7 +19,7 @@ use yii\httpclient\Request;
  * @property-read  integer $length
  * @property-read integer $index
  */
-class Block extends BaseObject
+class Thread extends BaseObject
 {
     use ArrayableTrait;
 
@@ -95,24 +95,24 @@ class Block extends BaseObject
     /**
      * @param resource $resource
      * @param integer $downloaded
-     * @param self[] $blocks
+     * @param self[] $threads
      * @return array
      */
-    public static function progress($resource, $downloaded, array &$blocks)
+    public static function progress($resource, $downloaded, array &$threads)
     {
         $p = [
             'done' => 0,
             'total' => 0,
             'percent' => 0,
-            'blocks' => $blocks
+            'threads' => $threads
         ];
 
-        foreach ($blocks as $block) {
-            if ($block->_curlResource === $resource) {
-                $block->_downloaded = $downloaded;
+        foreach ($threads as $thread) {
+            if ($thread->_curlResource === $resource) {
+                $thread->_downloaded = $downloaded;
             }
-            $p['done'] += $block->totalExists();
-            $p['total'] += $block->length;
+            $p['done'] += $thread->totalExists();
+            $p['total'] += $thread->length;
         }
 
         $p['percent'] = (integer)round(($p['done'] * 100 / $p['total']));
@@ -141,45 +141,46 @@ class Block extends BaseObject
     /**
      * @param Client $client
      * @param string $url
+     * @param integer $threadCount
      * @return self[]
      */
-    public static function calculate(Client $client, $url)
+    public static function calculate(Client $client, $url, $threadCount)
     {
-        /** @var self[] $blocks */
-        $blocks = [];
+        /** @var self[] $threads */
+        $threads = [];
 
         $index = -1;
 
-        $remoteSize = $client->getRemoteSize();
+        $remoteSize = $client->getRemoteSize($url);
 
         if ($remoteSize == 0)
             return [];
 
-        $multiSize = floor($remoteSize / $client->threadCount);
+        $multiSize = floor($remoteSize / $threadCount);
 
         $s = 0;
         while ($s <= $remoteSize) {
-            $block = new self();
-            $block->_client = $client;
-            $block->_start = $s;
-            $block->_index = ++$index;
+            $thread = new self();
+            $thread->_client = $client;
+            $thread->_start = $s;
+            $thread->_index = ++$index;
             $s += $multiSize;
             if ($s >= $remoteSize) {
-                $block->_end = $remoteSize;
+                $thread->_end = $remoteSize;
             } else {
-                $block->_end = $s;
+                $thread->_end = $s;
             }
-            $block->_length = $block->_end - $block->_start;
-            $block->_hash = sha1(implode($url, $block->toArray()));
+            $thread->_length = $thread->_end - $thread->_start;
+            $thread->_hash = sha1(implode($url, $thread->toArray()));
             $s++;
 
-            $file = $block->getPartFileName();
+            $file = $thread->getPartFileName();
 
             if (file_exists($file)) {
                 if ($client->resumeDownload) {
-                    $block->_exists = filesize($file);
-                    if ($block->_exists < $block->_length) {
-                        $block->_start += $block->_exists;
+                    $thread->_exists = filesize($file);
+                    if ($thread->_exists < $thread->_length) {
+                        $thread->_start += $thread->_exists;
                     }
                 } else {
                     unlink($file);
@@ -187,10 +188,10 @@ class Block extends BaseObject
             }
 
 
-            $blocks[] = $block;
+            $threads[] = $thread;
         }
 
-        return $blocks;
+        return $threads;
     }
 
     /**

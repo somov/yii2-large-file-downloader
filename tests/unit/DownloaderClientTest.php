@@ -52,13 +52,13 @@ class DownloaderClientTest extends \Codeception\TestCase\Test
         $client = $this->getDownloaderClient();
         $client->threadCount = $theadCount;
 
-        $size = $client->preRequest(['url' => $url])->getRemoteSize();
+        $size = $client->getRemoteSize($url);
 
         $client->on(\somov\lfd\Client::EVENT_PROGRESS, function ($event) use (&$p) {
             $p = $event->percent;
         });
 
-        $this->assertSame($size, filesize($client->get($url)->send()->data));
+        $this->assertSame($size, filesize($client->download($url)->data));
         $this->assertGreaterThan(98, $p);
 
     }
@@ -90,7 +90,7 @@ class DownloaderClientTest extends \Codeception\TestCase\Test
         $client = $this->getDownloaderClient();
         $client->threadCount = $theadCount;
 
-        $size = $client->preRequest(['url' => $url])->getRemoteSize();
+        $size = $client->getRemoteSize($url);
 
         $client->on(\somov\lfd\Client::EVENT_PROGRESS, function ($event) use (&$p, $exception) {
             $p = $event->percent;
@@ -101,7 +101,7 @@ class DownloaderClientTest extends \Codeception\TestCase\Test
 
         });
 
-        $this->assertSame($size, filesize($client->get($url)->send()->data));
+        $this->assertSame($size, filesize($client->download($url)->data));
 
 
         $this->assertGreaterThan(98, $p);

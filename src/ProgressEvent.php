@@ -34,7 +34,7 @@ class ProgressEvent extends Event
     public $total;
 
     /**
-     * @var Block[]
+     * @var Thread[]
      */
-    public $blocks;
+    public $threads;
 }

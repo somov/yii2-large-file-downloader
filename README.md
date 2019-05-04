@@ -40,13 +40,11 @@ Usage
 
         $client->on(\somov\lfd\Client::EVENT_PROGRESS, function ($event){
             /** @var \somov\lfd\ProgressEvent $event */
-            $p = $event->percent;
+            echo  $event->percent;
         });
 
         //Download file   
-        $fileName = $client->get("https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4")
-            ->send()
-            ->data;
+        $fileName = $client->download("https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4")->data;
 
         $size = filesize($fileName); 
         

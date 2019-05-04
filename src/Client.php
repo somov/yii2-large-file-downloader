@@ -17,6 +17,7 @@ use yii\httpclient\Request;
 
 /**
  * Class Client
+ * @property int threadCount
  * @package somov\lfd
  */
 class Client extends BaseClient
@@ -24,13 +25,9 @@ class Client extends BaseClient
     const EVENT_PROGRESS = 'progress';
 
 
-    /** @var  \yii\httpclient\Response */
-    private $_preResponse;
+    /** @var  \yii\httpclient\Response[] */
+    private $_preResponses;
 
-    /**
-     * @var int
-     */
-    public $threadCount = 2;
 
     /**
      * @var bool
@@ -43,23 +40,103 @@ class Client extends BaseClient
     public $tmpAlias = '@runtime/downloads';
 
 
+    /**
+     * @var bool
+     */
+    public $followLocation = true;
+
+    /**
+     * @var int
+     */
+    public $redirectCount = 5;
+
+
     public $responseConfig = [
         'class' => Response::class
     ];
 
+    protected $transportConfig = [
+        'class' => Transport::class,
+        'threadCount' => 2
+    ];
+
     /**
-     * @var  string
+     * @param string $url
+     * @param array $headers
+     * @param array $options
+     * @return \yii\httpclient\Response
      */
-    private $_url;
+    public function download($url, $headers = [], $options = [])
+    {
+
+        if ($this->getRemoteSize($url) === 0) {
+            new \RuntimeException('Not content found at url ' . $url);
+        }
+
+        if (!$this->isAcceptRanges($url)) {
+            $this->threadCount = 1;
+        }
+
+        return $request = $this->createRequest()
+            ->setMethod('GET')
+            ->setUrl(ArrayHelper::getValue($this->requestConfig, 'url', $url))
+            ->addHeaders($headers)
+            ->addOptions($options)
+            ->send();
+
+    }
+
+
+    /**
+     * @param string $url
+     * @return int
+     */
+    public function getRemoteSize($url)
+    {
+
+        $preResponse = $this->getPreResponse($url);
+
+        return (integer)$preResponse->headers->get('content-length', 0);
+
+    }
+
+
+    /**
+     * @param $url
+     * @return bool
+     */
+    public function isAcceptRanges($url)
+    {
+        $preResponse = $this->getPreResponse($url);
+
+        return $preResponse->headers->get('accept-ranges', '') === 'bytes';
+    }
+
+    /**
+     * @return int
+     */
+    public function getThreadCount()
+    {
+        return $this->transportConfig['threadCount'];
+    }
+
+    /**
+     * @param $value
+     * @return string int
+     */
+    public function setThreadCount($value)
+    {
+        return $this->transportConfig['threadCount'] = $value;
+    }
+
 
     /**
      * @inheritdoc
      */
     public function init()
     {
-        parent::init();
-
         $this->initDownloader();
+        parent::init();
 
     }
 
@@ -68,76 +145,71 @@ class Client extends BaseClient
      */
     protected function initDownloader()
     {
-        $this->setTransport([
-            'class' => Transport::class
-        ]);
+        $this->setTransport($this->transportConfig);
 
         FileHelper::createDirectory(\Yii::getAlias($this->tmpAlias));
     }
 
 
     /**
-     * @param Request|array $request
-     * @return Client
+     * @param Request $request
+     * @return \yii\httpclient\Response
      * @throws \yii\base\InvalidConfigException
      * @throws \yii\httpclient\Exception
      */
-    public function preRequest($request)
+    protected function preRequest($request)
     {
-
-        if (is_array($request)) {
-            $this->requestConfig = ArrayHelper::merge($this->requestConfig, $request);
-            $request = $this->createRequest();
-        } elseif (isset($this->_preResponse) && $request->url === $this->_url) {
-            return $this;
-        }
-
         $client = \Yii::createObject([
             'class' => BaseClient::class,
             'transport' => CurlTransport::class,
             'requestConfig' => $this->requestConfig
         ]);
 
-        $this->_url = $request->getFullUrl();
+        $this->responseConfig['baseFileName'] = basename($request->url);
 
-        $this->responseConfig['baseFileName'] = basename($this->_url);
-
-        $this->_preResponse = $client->head($this->_url)->send();
-
-        return $this;
+        return $client->head($request->url)->send();
 
     }
 
     /**
-     * @return int
+     * @param string $url
+     * @return string string
      */
-    public function getRemoteSize()
+    public function getUrlHash($url)
     {
-        if (empty($this->_preResponse)) {
-            return 0;
+        return sha1($url);
+    }
+
+    /**
+     * @param $url
+     * @param int $count
+     * @return \yii\httpclient\Response
+     */
+    protected function getPreResponse($url, $count = 0)
+    {
+
+        $count++;
+
+        if ($count > $this->redirectCount) {
+            throw new Exception('Too many redirects: ' . $this->redirectCount);
         }
-        return (integer)$this->_preResponse->headers->get('content-length', 0);
-    }
 
-    /**
-     * @return bool
-     */
-    public function isAcceptRanges()
-    {
-        if (empty($this->_preResponse)) {
-            return false;
+        $hash = $this->getUrlHash($url);
+
+        if (isset($this->_preResponses[$hash])) {
+            $preResponse = $this->_preResponses[$hash];
+        } else {
+            $this->requestConfig = ArrayHelper::merge($this->requestConfig, ['url' => $url]);
+            $preResponse = $this->_preResponses[$hash] = $this->preRequest($this->createRequest());
         }
-        return $this->_preResponse->headers->get('accept-ranges', '') === 'bytes';
+
+        if ($this->followLocation && in_array($preResponse->getStatusCode(), ['301', '302'])) {
+            return $this->getPreResponse($preResponse->headers->get('location'), $count);
+        }
+
+        return $this->_preResponses[$hash];
+
     }
 
-
-
-    /**
-     * @return\yii\httpclient\Response|null
-     */
-    public function getPreResponse()
-    {
-        return $this->_preResponse;
-    }
 
 }

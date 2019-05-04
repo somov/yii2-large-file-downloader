@@ -42,7 +42,7 @@ class Response extends Message
     }
 
     /**
-     * @return Block[]|mixed $blocks
+     * @return Thread[]|mixed $threads
      */
     public function getContent()
     {
@@ -58,16 +58,16 @@ class Response extends Message
 
         $handle = fopen($filename, 'w');
 
-        $blocks = $this->getContent();
+        $threads = $this->getContent();
         try {
-            foreach ($blocks as $block) {
-                fclose($block->getFileResource());
-                $fr = fopen($block->getPartFileName(), 'r');
+            foreach ($threads as $thread) {
+                fclose($thread->getFileResource());
+                $fr = fopen($thread->getPartFileName(), 'r');
                 while (!feof($fr)) {
                     fwrite($handle, fread($fr, $this->readLength));
                 }
                 fclose($fr);
-                unlink($block->getPartFileName());
+                unlink($thread->getPartFileName());
             }
         } finally {
             fclose($handle);
