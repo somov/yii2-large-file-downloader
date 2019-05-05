@@ -13,7 +13,6 @@ use yii\helpers\ArrayHelper;
 use yii\helpers\FileHelper;
 use yii\httpclient\Client as BaseClient;
 use yii\httpclient\CurlTransport;
-use yii\httpclient\Request;
 
 /**
  * Class Client
@@ -76,6 +75,8 @@ class Client extends BaseClient
         if (!$this->isAcceptRanges($url)) {
             $this->threadCount = 1;
         }
+
+        $this->setTransport($this->transportConfig);
 
         return $request = $this->createRequest()
             ->setMethod('GET')
@@ -145,31 +146,9 @@ class Client extends BaseClient
      */
     protected function initDownloader()
     {
-        $this->setTransport($this->transportConfig);
-
         FileHelper::createDirectory(\Yii::getAlias($this->tmpAlias));
     }
 
-
-    /**
-     * @param Request $request
-     * @return \yii\httpclient\Response
-     * @throws \yii\base\InvalidConfigException
-     * @throws \yii\httpclient\Exception
-     */
-    protected function preRequest($request)
-    {
-        $client = \Yii::createObject([
-            'class' => BaseClient::class,
-            'transport' => CurlTransport::class,
-            'requestConfig' => $this->requestConfig
-        ]);
-
-        $this->responseConfig['baseFileName'] = basename($request->url);
-
-        return $client->head($request->url)->send();
-
-    }
 
     /**
      * @param string $url
@@ -200,7 +179,16 @@ class Client extends BaseClient
             $preResponse = $this->_preResponses[$hash];
         } else {
             $this->requestConfig = ArrayHelper::merge($this->requestConfig, ['url' => $url]);
-            $preResponse = $this->_preResponses[$hash] = $this->preRequest($this->createRequest());
+
+            $client = \Yii::createObject([
+                'class' => BaseClient::class,
+                'transport' => CurlTransport::class,
+                'requestConfig' => $this->requestConfig
+            ]);
+
+            $preResponse = $this->_preResponses[$hash] = $client->head($url)->send();
+
+            $this->responseConfig['baseFileName'] = $this->getBaseFileName($preResponse, $url);
         }
 
         if ($this->followLocation && in_array($preResponse->getStatusCode(), ['301', '302'])) {
@@ -209,6 +197,38 @@ class Client extends BaseClient
 
         return $this->_preResponses[$hash];
 
+    }
+
+    /**
+     * @param \yii\httpclient\Response $response
+     * @param $url
+     * @return string
+     */
+    protected function getBaseFileName($response, $url)
+    {
+        $fileName = '';
+        if ($cd = $response->headers->get('content-disposition', false)) {
+            if (preg_match('/filename=\"(.*?)\"/', $cd, $m)) {
+                $fileName = $m[1];
+            }
+        }
+
+        if (empty($fileName)) {
+            $parts = parse_url($url);
+            $fileName = basename($parts['path']);
+
+            $parts= pathinfo($fileName);
+
+            if (empty($parts['extension'])) {
+                $extensions = FileHelper::getExtensionsByMimeType($response->headers->get('content-type'));
+                if (count($extensions) > 0 ) {
+                    $fileName .= '.' . $extensions[0];
+                }
+            }
+        }
+
+
+        return $fileName;
     }
 
 

@@ -176,7 +176,7 @@ class Thread extends BaseObject
 
             $file = $thread->getPartFileName();
 
-            if (file_exists($file)) {
+            if (file_exists($file) && $client->isAcceptRanges($url)) {
                 if ($client->resumeDownload) {
                     $thread->_exists = filesize($file);
                     if ($thread->_exists < $thread->_length) {
@@ -186,7 +186,6 @@ class Thread extends BaseObject
                     unlink($file);
                 }
             }
-
 
             $threads[] = $thread;
         }
