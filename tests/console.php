@@ -7,12 +7,15 @@
  */
 
 return [
-    'id' => 'basic-console',
+    'id' => 'test-console',
     'basePath' => dirname(__DIR__),
     'bootstrap' => ['log'],
     'aliases' => [
         '@bower' => '@vendor/bower-asset',
         '@npm' => '@vendor/npm-asset',
+    ],
+    'controllerMap' => [
+        'downloader' => '\somov\lfd\CommandController'
     ],
     'components' => [
         'log' => [

@@ -49,3 +49,24 @@ Usage
         $size = filesize($fileName); 
         
         echo $size;
+``` 
+
+Usage with command controller 
+```
+
+Configure the command in your main application configuration:
+```
+```php
+    'controllerMap' => [
+            'downloader' => '\somov\lfd\CommandController'
+        ],
+```
+
+Once the extension is installed and configured, simply use it on your command line
+
+```
+yii downloader  https://speed.hetzner.de/1GB.bin -c 20
+
+```
+
+![screen](https://i.ibb.co/PwpX6Vf/Screenshot-from-2019-05-07-01-56-57.png)
