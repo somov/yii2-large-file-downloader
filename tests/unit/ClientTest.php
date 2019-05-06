@@ -45,7 +45,6 @@ class ClientTest extends \Codeception\TestCase\Test
 
     public function getUrlsProviderDownload()
     {
-
         return [
             ['http://demo.borland.com/testsite/downloads/downloadfile.php?file=Data1MB.dat&cd=attachment+filename', 'c35cc7d8d91728a0cb052831bc4ef372'],
             ['https://tinyurl.com/yxukwuq7', '8e53463838adc859873bbb1a172e1ab1'],
@@ -58,6 +57,8 @@ class ClientTest extends \Codeception\TestCase\Test
     /**
      * @dataProvider getUrlsProviderDownload
      * @param $url
+     * @param $hash
+     * @throws \yii\base\InvalidConfigException
      */
     public function testDownload($url, $hash)
     {
@@ -71,11 +72,15 @@ class ClientTest extends \Codeception\TestCase\Test
             $p = $event->percent;
         });
 
+        $client->on(\somov\lfd\Client::EVENT_BEFORE_SEND, function ($event){
+           $s = $event;
+        });
+
         $file = $client->download($url)->data;
 
-        $this->assertSame($hash, md5_file($file));
-
         $this->assertSame($size, filesize($file) );
+
+        $this->assertSame($hash, md5_file($file));
 
         $this->assertGreaterThan(98, $p);
 

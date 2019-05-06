@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: web
+ * User: Nikolay Somov somov.nn@gmal.com
  * Date: 15.04.19
  * Time: 18:49
  */
@@ -11,6 +11,7 @@ namespace somov\lfd;
 
 use yii\helpers\ArrayHelper;
 use yii\helpers\FileHelper;
+use yii\helpers\StringHelper;
 use yii\httpclient\Client as BaseClient;
 use yii\httpclient\CurlTransport;
 
@@ -63,13 +64,17 @@ class Client extends BaseClient
      * @param string $url
      * @param array $headers
      * @param array $options
-     * @return \yii\httpclient\Response
+     * @return Response
      */
     public function download($url, $headers = [], $options = [])
     {
 
         if ($this->getRemoteSize($url) === 0) {
-            new \RuntimeException('Not content found at url ' . $url);
+            $response = $this->getPreResponse($url);
+            $exception = new Exception('No content found with code ' . $response->getStatusCode(),
+                $response->getStatusCode());
+            $exception->response = $response;
+            throw $exception;
         }
 
         if (!$this->isAcceptRanges($url)) {
@@ -78,12 +83,19 @@ class Client extends BaseClient
 
         $this->setTransport($this->transportConfig);
 
-        return $request = $this->createRequest()
+        $request = $this->createRequest();
+        $this->beforeSend($request);
+        /** @var Response|\yii\httpclient\Response $response */
+        $response = $request
             ->setMethod('GET')
             ->setUrl(ArrayHelper::getValue($this->requestConfig, 'url', $url))
             ->addHeaders($headers)
             ->addOptions($options)
             ->send();
+
+        $this->afterSend($request, $response);
+
+        return $response;
 
     }
 
@@ -96,6 +108,10 @@ class Client extends BaseClient
     {
 
         $preResponse = $this->getPreResponse($url);
+
+        if (!StringHelper::startsWith($preResponse->getStatusCode(), '2')) {
+            return 0;
+        }
 
         return (integer)$preResponse->headers->get('content-length', 0);
 
@@ -217,11 +233,11 @@ class Client extends BaseClient
             $parts = parse_url($url);
             $fileName = basename($parts['path']);
 
-            $parts= pathinfo($fileName);
+            $parts = pathinfo($fileName);
 
             if (empty($parts['extension'])) {
                 $extensions = FileHelper::getExtensionsByMimeType($response->headers->get('content-type'));
-                if (count($extensions) > 0 ) {
+                if (count($extensions) > 0) {
                     $fileName .= '.' . $extensions[0];
                 }
             }

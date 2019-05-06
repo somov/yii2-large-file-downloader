@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: web
+ * User: Nikolay Somov somov.nn@gmal.com
  * Date: 15.04.19
  * Time: 18:47
  */
@@ -22,7 +22,7 @@ use yii\httpclient\Transport as BaseTransport;
  * Class LargeFileDownloaderTransport
  * @package somov\lfd
  *
-
+ * @property-read Thread[] $threads
  */
 class Transport extends BaseTransport
 {
@@ -31,6 +31,27 @@ class Transport extends BaseTransport
      * @var int
      */
     public $threadCount = 2;
+
+    /**
+     * @var Thread[]
+     */
+    private $_threads;
+
+    /**
+     * @var integer
+     */
+    private $_previousDownloadedSize = 0;
+
+    /**
+     * @var float
+     */
+    private $_previousDownloadedTime = 0;
+
+    /**
+     * @var float
+     */
+    private $_startTime = 0;
+
 
     /**
      * @param Request $request
@@ -45,45 +66,87 @@ class Transport extends BaseTransport
          */
         $client = $request->client;
 
-        $threads = Thread::calculate($client, $request->getUrl(), $this->threadCount);
+        $this->_threads = Thread::calculate($client, $request->getUrl(), $this->threadCount);
         $requests = [];
-        $progress = 0;
 
-        foreach ($threads as $thread) {
+        $this->_startTime = $this->_previousDownloadedTime = microtime(true);
 
-            if ($thread->totalExists() < $thread->length) {
+        foreach ($this->_threads as $thread) {
+
+            if ($thread->getDownloaded() + $thread->getExists() < $thread->length) {
                 $request = new Request(ArrayHelper::merge($client->requestConfig, [
                     'client' => $client,
-                    'options' => [
-                        CURLOPT_PROGRESSFUNCTION => function ($resource, $downloadSize, $downloaded)
-                        use (&$threads, &$progress, $client) {
-                            if ($downloadSize > 0) {
-                                $p = Thread::progress($resource, $downloaded, $threads);
-                                if ($p['percent'] !== $progress) {
-                                    $progress = ['percent'];
-                                    $client->trigger(Client::EVENT_PROGRESS, new ProgressEvent($p));
-                                }
-                            }
-                        },
-                        CURLOPT_NOPROGRESS => false,
-                        CURLOPT_FILE => $thread->getFileResource(),
-                    ],
                     'headers' => [
                         'range' => "bytes=$thread->start-$thread->end",
                         'Cache-Control' => 'no-cache'
+                    ],
+                    'options' => [
+                        CURLOPT_FILE => $thread->getFileResource(),
                     ]
                 ]));
 
+                if ($client->hasEventHandlers(Client::EVENT_PROGRESS)) {
+
+                    $request->addOptions([
+                        CURLOPT_PROGRESSFUNCTION => function ($resource, $downloadSize, $downloaded)
+                        use (&$threads, $client) {
+                            if ($downloadSize > 0) {
+                                $event = new ProgressEvent($this, $resource, $downloaded);
+
+                                $this->_previousDownloadedTime = microtime(true);
+                                $this->_previousDownloadedSize = $event->done;
+
+                                $client->trigger(Client::EVENT_PROGRESS, $event);
+                            }
+                        },
+                        CURLOPT_NOPROGRESS => false
+                    ]);
+                }
                 $thread->request = $request;
                 $requests[] = $request;
             }
+
+            $request->beforeSend();
         }
 
-        $this->batchSendThreads($requests, $threads);
+        $this->batchSendThreads($requests);
 
-        return $client->createResponse($threads);
+        return $client->createResponse($this->_threads);
 
     }
+
+    /**
+     * @return Thread[]
+     */
+    public function getThreads()
+    {
+        return $this->_threads;
+    }
+
+    /**
+     * @return int
+     */
+    public function getPreviousDownloadedSize()
+    {
+        return $this->_previousDownloadedSize;
+    }
+
+    /**
+     * @return float
+     */
+    public function getPreviousDownloadedTime()
+    {
+        return $this->_previousDownloadedTime;
+    }
+
+    /**
+     * @return float
+     */
+    public function getStartTime()
+    {
+        return $this->_startTime;
+    }
+
 
 
     /**
@@ -103,11 +166,10 @@ class Transport extends BaseTransport
 
     /**
      * @param Request[] $requests
-     * @param Thread[] $threads
      * @throws Exception
      * @throws InvalidConfigException
      */
-    public function batchSendThreads(array $requests, &$threads)
+    public function batchSendThreads(array $requests)
     {
         $curlBatchResource = curl_multi_init();
 
@@ -121,10 +183,10 @@ class Transport extends BaseTransport
             $curlOptions = $this->prepare($request);
             $curlResource = $this->initCurl($curlOptions);
 
-            $threads[$key]->setCurlResource($curlResource);
+            $this->_threads[$key]->setCurlResource($curlResource);
 
             $token .= $request->client->createRequestLogToken($request->getMethod(), $curlOptions[CURLOPT_URL],
-                    $curlOptions[CURLOPT_HTTPHEADER], $threads[$key]->getHash()) . "\n\n";
+                    $curlOptions[CURLOPT_HTTPHEADER], $this->_threads[$key]->getHash()) . "\n\n";
 
             $responseHeaders[$key] = [];
             $this->setHeaderOutput($curlResource, $responseHeaders[$key]);
@@ -165,7 +227,7 @@ class Transport extends BaseTransport
         foreach ($requests as $key => $request) {
             $response = $request->client->createResponse($responseContents[$key], $responseHeaders[$key]);
             $request->afterSend($response);
-            $threads[$key]->response = $response;
+            $this->_threads[$key]->response = $response;
         }
 
     }

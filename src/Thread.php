@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: web
+ * User: Nikolay Somov somov.nn@gmal.com
  * Date: 15.04.19
  * Time: 20:47
  */
@@ -84,41 +84,7 @@ class Thread extends BaseObject
      */
     private $_curlResource;
 
-    /**
-     * @return int
-     */
-    public function totalExists()
-    {
-        return $this->_exists + $this->_downloaded;
-    }
 
-    /**
-     * @param resource $resource
-     * @param integer $downloaded
-     * @param self[] $threads
-     * @return array
-     */
-    public static function progress($resource, $downloaded, array &$threads)
-    {
-        $p = [
-            'done' => 0,
-            'total' => 0,
-            'percent' => 0,
-            'threads' => $threads
-        ];
-
-        foreach ($threads as $thread) {
-            if ($thread->_curlResource === $resource) {
-                $thread->_downloaded = $downloaded;
-            }
-            $p['done'] += $thread->totalExists();
-            $p['total'] += $thread->length;
-        }
-
-        $p['percent'] = (integer)round(($p['done'] * 100 / $p['total']));
-
-        return $p;
-    }
 
     /**
      * @return array
@@ -269,6 +235,30 @@ class Thread extends BaseObject
     public function getHash()
     {
         return $this->_hash;
+    }
+
+
+    /**
+     * @param $value
+     */
+    public function setDownloaded($value){
+        $this->_downloaded = $value;
+    }
+
+    /**
+     * @return int
+     */
+    public function getDownloaded()
+    {
+        return $this->_downloaded;
+    }
+
+    /**
+     * @return int
+     */
+    public function getExists()
+    {
+        return $this->_exists;
     }
 
 

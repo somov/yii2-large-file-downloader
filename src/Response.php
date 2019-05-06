@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: web
+ * User: Nikolay Somov somov.nn@gmal.com
  * Date: 17.04.19
  * Time: 12:12
  */
@@ -40,6 +40,15 @@ class Response extends Message
     {
         $this->baseFileName = $name;
     }
+
+    /**
+     * @return string
+     */
+    public function getBaseFileName()
+    {
+        return $this->baseFileName;
+    }
+
 
     /**
      * @return Thread[]|mixed $threads

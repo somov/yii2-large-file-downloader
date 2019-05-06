@@ -63,10 +63,10 @@ class DownloaderClientTest extends \Codeception\TestCase\Test
 
     }
 
-
     public function getUrlsProviderResume()
     {
         return [
+            ['http://techslides.com/demos/sample-videos/not-found.mp4', 5, \somov\lfd\Exception::class],
             ['http://techslides.com/demos/sample-videos/small.mp4', 5, \yii\base\Exception::class],
             ['http://techslides.com/demos/sample-videos/small.mp4', 5, null],
         ];
@@ -81,7 +81,6 @@ class DownloaderClientTest extends \Codeception\TestCase\Test
     public function testDownloadResume($url, $theadCount, $exception)
     {
         $this->initLog();
-
 
         if (isset($exception)) {
             $this->expectException($exception);
