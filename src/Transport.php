@@ -4,7 +4,13 @@
  * User: Nikolay Somov somov.nn@gmal.com
  * Date: 15.04.19
  * Time: 18:47
+ *
+ * Transport performs actual HTTP request sending.
+ *
+ * @author Paul Klimov <klimov.paul@gmail.com>
+ * @since 2.0
  */
+
 
 namespace somov\lfd;
 
@@ -218,7 +224,6 @@ class Transport extends BaseTransport
         $responseContents = [];
         foreach ($curlResources as $key => $curlResource) {
             $responseContents[$key] = '';
-            //$responseContents[$key] = curl_multi_getcontent($curlResource);
             curl_multi_remove_handle($curlBatchResource, $curlResource);
         }
 
