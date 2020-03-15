@@ -23,6 +23,11 @@ use yii\base\Event;
 class ProgressEvent extends Event
 {
     /**
+     * @var Client
+     */
+    public $sender;
+
+    /**
      * @var integer
      */
     private $_percent = 0;

@@ -23,11 +23,12 @@ use yii\httpclient\CurlTransport;
 class Client extends BaseClient
 {
     const EVENT_PROGRESS = 'progress';
+    const EVENT_BEFORE_DOWNLOAD = 'beforeDownload';
+    const EVENT_AFTER_DOWNLOAD = 'afterDownload';
 
 
     /** @var  \yii\httpclient\Response[] */
     private $_preResponses;
-
 
     /**
      * @var bool
@@ -61,6 +62,11 @@ class Client extends BaseClient
     ];
 
     /**
+     * @var string
+     */
+    private $_downloadedUrl;
+
+    /**
      * @param string $url
      * @param array $headers
      * @param array $options
@@ -81,6 +87,11 @@ class Client extends BaseClient
             $this->threadCount = 1;
         }
 
+        $this->_downloadedUrl = $url;
+
+        $this->trigger(self::EVENT_BEFORE_DOWNLOAD, new DownloadEvent([
+            'preResponse' => $this->getPreResponse($url)]));
+
         $this->setTransport($this->transportConfig);
 
         $request = $this->createRequest();
@@ -94,6 +105,9 @@ class Client extends BaseClient
             ->send();
 
         $this->afterSend($request, $response);
+
+        $this->trigger(self::EVENT_AFTER_DOWNLOAD, new DownloadEvent([
+            'preResponse' => $this->getPreResponse($url)]));
 
         return $response;
 
@@ -245,6 +259,14 @@ class Client extends BaseClient
 
 
         return $fileName;
+    }
+
+    /**
+     * @return string
+     */
+    public function getDownloadedUrl()
+    {
+        return $this->_downloadedUrl;
     }
 
 

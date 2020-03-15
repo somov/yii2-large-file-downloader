@@ -35,8 +35,8 @@ class DownloaderClientTest extends \Codeception\TestCase\Test
     {
         return [
             ['http://techslides.com/demos/sample-videos/small.mp4', 5],
-            ['https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4', 15],
-            ['https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_5mb.mp4', 20]
+            //['https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4', 15],
+            //['https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_5mb.mp4', 20]
         ];
     }
 
