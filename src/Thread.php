@@ -85,7 +85,6 @@ class Thread extends BaseObject
     private $_curlResource;
 
 
-
     /**
      * @return array
      */
@@ -241,7 +240,8 @@ class Thread extends BaseObject
     /**
      * @param $value
      */
-    public function setDownloaded($value){
+    public function setDownloaded($value)
+    {
         $this->_downloaded = $value;
     }
 
@@ -259,6 +259,14 @@ class Thread extends BaseObject
     public function getExists()
     {
         return $this->_exists;
+    }
+
+    /**
+     * @return int
+     */
+    public function getPercent()
+    {
+        return (integer) round(($this->_downloaded + $this->_exists) *  100 / $this->getLength(), 0);
     }
 
 
