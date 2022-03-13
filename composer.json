@@ -16,7 +16,7 @@
         }
     ],
     "require": {
-        "yiisoft/yii2": ">=2.0.14",
+        "yiisoft/yii2": ">=2.0.38",
         "yiisoft/yii2-httpclient": "*",
       "ext-curl": "*"
     },
